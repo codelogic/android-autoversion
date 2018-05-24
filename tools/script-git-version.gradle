@@ -1,7 +1,7 @@
 String parseGitVersionName() {
     try {
         return 'git describe --dirty --always'.execute([], project.rootDir).text.trim()
-    } catch (Throwable e) {
+    } catch (Exception e) {
         logger.warn("git is not available!", e)
     }
     return null
@@ -37,7 +37,7 @@ Integer parseGitVersionCode(int flags) {
         // There's a catch however: the tag may contain "-" characters (eg, v1.0.0-alpha). This
         // means that "alpha" would be split into its own group, giving
         //
-        //   [v1.0.0, alpha, commits, hashcode]
+        //   "v1.0.0-alpha-3-defa3ad5" -> [v1.0.0, alpha, commits, hashcode]
         //
         // So, the first token is considered the version code, and the commits and hashcode are read
         // from the end of the list.
@@ -130,7 +130,7 @@ Integer parseGitVersionCode(int flags) {
         versionCode += vMinor * 100000   // 99  values for minor
         versionCode += vMajor * 10000000 // 209 values for major (On Android O or lower)
         return versionCode
-    } catch (Throwable e) {
+    } catch (Exception e) {
         logger.warn("git is not available!", e)
     }
 
