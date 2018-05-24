@@ -1,0 +1,145 @@
+String parseGitVersionName() {
+    try {
+        return 'git describe --dirty --always'.execute([], project.rootDir).text.trim()
+    } catch (Throwable e) {
+        logger.warn("git is not available!", e)
+    }
+    return null
+}
+
+Integer parseGitVersionCode(int flags) {
+    try {
+        // There are two outputs that 'git describe --long --always' can produce:
+        // 1. [hashcode]
+        // 2. [tag]-[number-of-commits]-[hashcode]
+        //
+        // In the case that there are no reachable annotated tags, then the version code is based on
+        // the number of commits from HEAD. If there are annotated tags, then the this attempts to
+        // parse the human readable tag into a version code. Version codes, prior to Android P, are
+        // limited to 2,100,000,000. (Android P increases this). While this is a lot, parsing a
+        // version code means that the individual values within the version code must be mapped into
+        // a fixed, reserved range.
+        //
+        // This logic assumes one of the following forms for version tag, based on
+        // (semver 2.0.0)[https://semver.org/]. The notable exception is that anything beyond patch
+        // version is discarded, despite the 'must sort by x' when the version code is computed.
+        //
+        // xxxx[major]xxxx-xxxx
+        // xxxx[major].[minor]xxxx-postfix
+        // xxxx[major].[minor].[patch]xxxx-postfix
+        //
+        // To conserve space, the minor and patch values are limited to 99 values each.
+        // Thus: 1.2.89 would be a valid version code, but 1.2.103 would not.
+        // To ensure that the tags are comparable, even if elements are omitted (eg, if large
+        // updates are tagged as "v2.3" instead of "2.3.0") the version code is always computed as
+        // if the absent values were set to "0"
+        //
+        // There's a catch however: the tag may contain "-" characters (eg, v1.0.0-alpha). This
+        // means that "alpha" would be split into its own group, giving
+        //
+        //   [v1.0.0, alpha, commits, hashcode]
+        //
+        // So, the first token is considered the version code, and the commits and hashcode are read
+        // from the end of the list.
+        //
+        // Once the version tag is split, each element needs to regex out the integer value for each
+        // individual value:
+        //
+        //   [v1, 0, 0+2345]
+        //
+        // In these cases the version code should be:
+        //
+        //   major = 1
+        //   minor = 0
+        //   patch = 0
+        //
+        // The "v" and "+2345" should be ignored.
+        //
+        def description = 'git describe --long --always'.execute([], project.rootDir).text.trim()
+        def descriptionTokens = description.tokenize("-")
+
+        // If there are less than three elements, then there is no annotated tag to go off of, so
+        // make version codes based off of the number of commits.
+        if (descriptionTokens.size() < 3) {
+            def revCount = 'git rev-list --count HEAD'.execute([], project.rootDir).text.trim()
+            return Integer.parseInt(revCount)
+        }
+
+        // Parse out components from the [tag]-[numberofcommits]-[hashcode] pattern.
+        def versionTag = descriptionTokens.get(0)
+        def commitCount = descriptionTokens.get(descriptionTokens.size - 2)
+
+        // Tokenize the version code based on "v1.2.3". Take only the first two numbers
+        def versionTokens = versionTag.tokenize('.')
+        def vMajor = 0
+        def vMinor = 0
+        def vPatch = 0
+        def vFlags = flags
+
+        def hasMajor = versionTokens.size() > 0
+        def hasMinor = versionTokens.size() > 1
+        def hasPatch = versionTokens.size() > 2
+
+        if (hasMajor) {
+            vMajor = Integer.parseInt(
+                    (versionTokens[0] =~ /^[^0-9]*([0-9]*)*?/)[0])
+            if (vMajor >= 200) {
+                logger.warn("Major version codes over 200 may not work on Android O or lower. " + versionTag)
+            }
+        }
+
+        if (hasMinor) {
+            vMinor = Integer.parseInt(
+                    (versionTokens[1] =~ /^[^0-9]*([0-9]*)*?/)[0])
+            if (vMinor >= 100) {
+                logger.warn("Minor version code must be less than 100." + versionTag)
+                return 1
+            }
+        }
+
+        if (hasPatch) {
+            vPatch = Integer.parseInt(
+                    (versionTokens[2] =~ /^[^0-9]*([0-9]*)*?/)[0])
+            if (vPatch >= 100) {
+                logger.warn("Patch version code must be less than 100." + versionTag)
+                return 1
+            }
+        }
+
+        if (vFlags > 0) {
+            logger.warn("Build number must be less than 1000")
+            if (flags >= 1000) {
+                logger.warn("Flags must be less than 1000. Actual: " + flags)
+                return 1
+            }
+            vFlags = flags
+        } else {
+            if (commitCount >= 1000) {
+                logger.warn("Commit count must be less than 1000. Truncating to 999. Actual: " + commitCount)
+                commitCount = 999
+            }
+            vFlags = commitCount
+        }
+
+        // With this scheme you could release a new major version every week and not run out of
+        // version codes for 3.5 years (200 versions / 52 weeks per year). If you release every 6
+        // years it would take 23 years. (200 / (52 / 6))
+        def versionCode = 0
+        versionCode += vFlags            // 999 values for flags
+        versionCode += vPatch * 1000     // 99  values for patch
+        versionCode += vMinor * 100000   // 99  values for minor
+        versionCode += vMajor * 10000000 // 209 values for major (On Android O or lower)
+        return versionCode
+    } catch (Throwable e) {
+        logger.warn("git is not available!", e)
+    }
+
+    // Return 1 if parsing fails.
+    return 1
+}
+
+// Export methods and turn them into closures
+ext {
+    gitVersionName = this.&parseGitVersionName
+    gitVersionCode = this.&parseGitVersionCode
+}

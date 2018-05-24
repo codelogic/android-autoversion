@@ -1,0 +1,93 @@
+apply plugin: 'com.android.application'
+apply from: "$project.rootDir/tools/script-git-version.gradle"
+apply from: "$project.rootDir/tools/script-lint.gradle"
+
+android {
+    // This defines what methods and API's are available to the app.
+    compileSdkVersion 26
+
+    defaultConfig {
+        // ApplicationId must not change or it will not match the playstore listing.
+        //
+        // Rules:
+        // 1. Must have two segments (One or more dots)
+        // 2. Each segment must start with a letter
+        // 3. All characters must be alphanumeric or underscore [a-zA-z0-9_]
+        //
+        // Although you don't *have* to do this, it can be a randomly generated
+        // value!
+        applicationId "A.aAaAaAaAaAaAa"
+
+        // minSdkVersion defines the lowest API version that this app will run on.
+        minSdkVersion 21
+
+        // targetSdkVersion is the newest API version that this app has been tested against.
+        // Setting this to a newer sdk disables compatibility behaviors for older sdks.
+        targetSdkVersion 26
+    }
+
+    buildTypes {
+        debug {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'debug.pro'
+            versionNameSuffix '-debug'
+        }
+
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'optimized.pro'
+        }
+    }
+
+    signingConfigs {
+        // This signing configuration is for development only! This avoids having to uninstall and
+        // reinstall apks when switching computers, and doesn't expire after a year.
+        dev {
+            keyAlias 'aav-dev'
+            keyPassword 'aav-dev'
+            storePassword 'aav-dev'
+            storeFile file('../keystore/android-autoversion.jks')
+        }
+
+        // This is a release signing configuration. The values are loaded from gradle.properties
+        // which MUST NEVER BE CHECKED IN TO THE REPOSITORY. Neither the keystore file nor the 
+        // password should ever be committed or uploaded to the git repository.
+        release {
+            try {
+                storeFile     file(KEYSTORE_FILE)
+                storePassword KEYSTORE_PASSWORD
+                keyAlias      KEY_ALIAS
+                keyPassword   KEY_PASSWORD
+            } catch (ex) {
+                throw new InvalidUserDataException(
+            }
+        }
+    }
+
+    // Specifies the flavor dimensions you want to use. The order in which you
+    // list each dimension determines its priority, from highest to lowest,
+    // when Gradle merges variant sources and configurations. You must assign
+    // each product flavor you configure to one of the flavor dimensions.
+    flavorDimensions "signing"
+
+    productFlavors {
+        // This will build a similar, but slightly different APK that can be installed separately
+        // from the external release.
+        dev {
+            applicationIdSuffix '.dev'
+            dimension "signing"
+            signingConfig signingConfigs.dev
+            versionCode gitVersionCode(0)
+            versionName gitVersionName() + "-dev"
+        }
+
+        // This flavor will have the public playstore application id and signing configuration and
+        // is intended to be release publicly.
+        external {
+            dimension "signing"
+            signingConfig signingConfigs.release
+            versionCode gitVersionCode(0)
+            versionName gitVersionName()
+        }
+    }
+}
