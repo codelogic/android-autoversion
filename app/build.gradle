@@ -60,6 +60,7 @@ android {
                 keyPassword   KEY_PASSWORD
             } catch (ex) {
                 throw new InvalidUserDataException(
+                    "You should define KEYSTORE_FILE, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD in gradle.properties.", ex)
             }
         }
     }
