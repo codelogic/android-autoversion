@@ -4,7 +4,7 @@ apply from: "$project.rootDir/tools/script-lint.gradle"
 
 android {
     // This defines what methods and API's are available to the app.
-    compileSdkVersion 26
+    compileSdkVersion 28
 
     defaultConfig {
         // ApplicationId must not change or it will not match the playstore listing.
@@ -23,7 +23,7 @@ android {
 
         // targetSdkVersion is the newest API version that this app has been tested against.
         // Setting this to a newer sdk disables compatibility behaviors for older sdks.
-        targetSdkVersion 26
+        targetSdkVersion 28
     }
 
     buildTypes {
