@@ -1,6 +1,8 @@
 apply plugin: 'com.android.application'
 apply from: "$project.rootDir/tools/script-git-version.gradle"
 apply from: "$project.rootDir/tools/script-lint.gradle"
+apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-android-extensions'
 
 android {
     // This defines what methods and API's are available to the app.
@@ -54,13 +56,13 @@ android {
         // password should ever be committed or uploaded to the git repository.
         release {
             try {
-                storeFile     file(KEYSTORE_FILE)
+                storeFile file(KEYSTORE_FILE)
                 storePassword KEYSTORE_PASSWORD
-                keyAlias      KEY_ALIAS
-                keyPassword   KEY_PASSWORD
+                keyAlias KEY_ALIAS
+                keyPassword KEY_PASSWORD
             } catch (ex) {
                 throw new InvalidUserDataException(
-                    "You should define KEYSTORE_FILE, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD in gradle.properties.", ex)
+                        "You should define KEYSTORE_FILE, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD in gradle.properties.", ex)
             }
         }
     }
@@ -91,4 +93,9 @@ android {
             versionName gitVersionName()
         }
     }
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+    implementation 'com.android.support.constraint:constraint-layout:+'
 }
