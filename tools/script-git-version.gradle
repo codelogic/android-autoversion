@@ -71,10 +71,10 @@ Integer parseGitVersionCode(int flags) {
 
         // Tokenize the version code based on "v1.2.3". Take only the first two numbers
         def versionTokens = versionTag.tokenize('.')
-        def vMajor = 0
-        def vMinor = 0
-        def vPatch = 0
-        def vFlags = flags
+        int vMajor = 0
+        int vMinor = 0
+        int vPatch = 0
+        int vFlags = flags
 
         def hasMajor = versionTokens.size() > 0
         def hasMinor = versionTokens.size() > 1
@@ -82,7 +82,7 @@ Integer parseGitVersionCode(int flags) {
 
         if (hasMajor) {
             vMajor = Integer.parseInt(
-                    (versionTokens[0] =~ /^[^0-9]*([0-9]*)*?/)[0])
+                    (versionTokens[0] =~ /^[^0-9]*([0-9]*)/)[0][1])
             if (vMajor >= 200) {
                 logger.warn("Major version codes over 200 may not work on Android O or lower. " + versionTag)
             }
@@ -90,7 +90,7 @@ Integer parseGitVersionCode(int flags) {
 
         if (hasMinor) {
             vMinor = Integer.parseInt(
-                    (versionTokens[1] =~ /^[^0-9]*([0-9]*)*?/)[0])
+                    (versionTokens[1] =~ /^[^0-9]*([0-9]*)/)[0][1])
             if (vMinor >= 100) {
                 logger.warn("Minor version code must be less than 100." + versionTag)
                 return 1
@@ -99,7 +99,7 @@ Integer parseGitVersionCode(int flags) {
 
         if (hasPatch) {
             vPatch = Integer.parseInt(
-                    (versionTokens[2] =~ /^[^0-9]*([0-9]*)*?/)[0])
+                    (versionTokens[2] =~ /^[^0-9]*([0-9]*)/)[0][1])
             if (vPatch >= 100) {
                 logger.warn("Patch version code must be less than 100." + versionTag)
                 return 1
@@ -114,17 +114,18 @@ Integer parseGitVersionCode(int flags) {
             }
             vFlags = flags
         } else {
-            if (commitCount >= 1000) {
-                logger.warn("Commit count must be less than 1000. Truncating to 999. Actual: " + commitCount)
-                commitCount = 999
+            int commits = Integer.parseInt(commitCount)
+            if (commits >= 1000) {
+                logger.warn("Commit count must be less than 1000. Truncating to 999. Actual: " + commits)
+                commits = 999
             }
-            vFlags = commitCount
+            vFlags = commits
         }
 
         // With this scheme you could release a new major version every week and not run out of
         // version codes for 3.5 years (200 versions / 52 weeks per year). If you release every 6
         // years it would take 23 years. (200 / (52 / 6))
-        def versionCode = 0
+        int versionCode = 0
         versionCode += vFlags            // 999 values for flags
         versionCode += vPatch * 1000     // 99  values for patch
         versionCode += vMinor * 100000   // 99  values for minor
