@@ -24,9 +24,9 @@ Integer parseGitVersionCode(int flags) {
         // (semver 2.0.0)[https://semver.org/]. The notable exception is that anything beyond patch
         // version is discarded, despite the 'must sort by x' when the version code is computed.
         //
-        // xxxx[major]xxxx-xxxx
-        // xxxx[major].[minor]xxxx-postfix
-        // xxxx[major].[minor].[patch]xxxx-postfix
+        //   xxxx[major]xxxx-xxxx
+        //   xxxx[major].[minor]xxxx-postfix
+        //   xxxx[major].[minor].[patch]xxxx-postfix
         //
         // To conserve space, the minor and patch values are limited to 99 values each.
         // Thus: 1.2.89 would be a valid version code, but 1.2.103 would not.
@@ -34,27 +34,28 @@ Integer parseGitVersionCode(int flags) {
         // updates are tagged as "v2.3" instead of "2.3.0") the version code is always computed as
         // if the absent values were set to "0"
         //
-        // There's a catch however: the tag may contain "-" characters (eg, v1.0.0-alpha). This
-        // means that "alpha" would be split into its own group, giving
+        // There is a catch however: `git describe` seperates tags with `-` and the tags themselves
+        // may contain `-` characters (eg, `v1.0.0-alpha`). This means that "alpha" would be split
+        // into its own group:
         //
-        //   "v1.0.0-alpha-3-defa3ad5" -> [v1.0.0, alpha, commits, hashcode]
+        //   v1.0.0-alpha-3-defa3ad5 -> [v1.0.0, alpha, 3, defa3ad5]
         //
-        // So, the first token is considered the version code, and the commits and hashcode are read
-        // from the end of the list.
+        // To work around this, the first token is used for the primary version code, and the
+        // commits and hashcode are read from the end of the list.
         //
-        // Once the version tag is split, each element needs to regex out the integer value for each
-        // individual value:
+        // Once the version tag is split, the first set of contiguous numbers is extracted and used
+        // as the value for [major].[minor].[patch].
         //
         //   [v1, 0, 0+2345]
         //
-        // In these cases the version code should be:
+        // In these cases the values used to compute the versionCode are:
         //
         //   major = 1
         //   minor = 0
         //   patch = 0
         //
-        // The "v" and "+2345" should be ignored.
-        //
+        // The "v" and "+2345" are ignored. The final three digits can either be used as flags, or
+        // if no flag values are specified, it will use the number of commits since the last tag.
         def description = 'git describe --long --always'.execute([], project.rootDir).text.trim()
         def descriptionTokens = description.tokenize("-")
 
@@ -124,9 +125,9 @@ Integer parseGitVersionCode(int flags) {
 
         // With this scheme you could release a new major version every week and not run out of
         // version codes for 3.5 years (200 versions / 52 weeks per year). If you release every 6
-        // years it would take 23 years. (200 / (52 / 6))
+        // weeks it would take 23 years. (200 / (52 / 6))
         int versionCode = 0
-        versionCode += vFlags            // 999 values for flags
+        versionCode += vFlags            // 999 values for flags / commit count
         versionCode += vPatch * 1000     // 99  values for patch
         versionCode += vMinor * 100000   // 99  values for minor
         versionCode += vMajor * 10000000 // 209 values for major (On Android O or lower)
